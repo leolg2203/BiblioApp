@@ -1,0 +1,13 @@
+{
+  "name": "biblioapp",
+  "private": true,
+  "description": "Sistema web para la biblioteca comunitaria: visitantes, inventario, préstamos y reportes mensuales",
+  "scripts": {
+    "instalar": "npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm start --prefix backend",
+    "demo": "npm run demo --prefix backend"
+  }
+}
