@@ -4,6 +4,8 @@ import { Layout } from './componentes'
 import Login from './paginas/Login'
 import Panel from './paginas/Panel'
 import NuevaVisita from './paginas/NuevaVisita'
+import Visitantes from './paginas/Visitantes'
+import EditarVisitante from './paginas/EditarVisitante'
 import Inventario from './paginas/Inventario'
 import FichaLibro from './paginas/FichaLibro'
 import FormLibro from './paginas/FormLibro'
@@ -23,6 +25,8 @@ export default function App() {
         <Route element={<Protegida><Layout /></Protegida>}>
           <Route index element={<Panel />} />
           <Route path="visitas/nueva" element={<NuevaVisita />} />
+          <Route path="visitantes" element={<Visitantes />} />
+          <Route path="visitantes/:id" element={<EditarVisitante />} />
           <Route path="inventario" element={<Inventario />} />
           <Route path="inventario/nuevo" element={<FormLibro />} />
           <Route path="inventario/:id" element={<FichaLibro />} />

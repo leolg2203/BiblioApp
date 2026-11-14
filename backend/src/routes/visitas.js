@@ -15,21 +15,30 @@ r.get('/visitantes', (req, res) => {
     FROM visitante v LEFT JOIN ocupacion o ON o.id = v.ocupacion_id
     WHERE v.nombre LIKE ? OR v.codigo_credencial LIKE ?
     ORDER BY v.es_frecuente DESC, ultima_visita DESC
-    LIMIT 15`).all(q, q);
+    LIMIT ?`).all(q, q, Math.min(100, Number(req.query.limite) || 15));
   const fecha = hoy();
   res.json(filas.map((v) => ({ ...v, edad: edadEn(v.fecha_nacimiento, fecha) ?? v.ultima_edad })));
 });
 
-function validarVisitante(v) {
+function validarVisitante(v, { nuevo = true } = {}) {
   if (!v || !String(v.nombre || '').trim()) throw new ErrorApp(400, 'Escribe el nombre del visitante.');
   if (!GENEROS.includes(v.genero)) throw new ErrorApp(400, 'Elige el género.');
-  if (!v.fecha_nacimiento && (v.edad === undefined || v.edad === null || v.edad === '')) {
+  if (v.fecha_nacimiento && v.fecha_nacimiento > hoy()) throw new ErrorApp(400, 'La fecha de nacimiento no puede ser futura.');
+  // Al registrar a alguien nuevo se necesita la edad o la fecha de nacimiento; al editar es opcional
+  if (nuevo && !v.fecha_nacimiento && (v.edad === undefined || v.edad === null || v.edad === '')) {
     throw new ErrorApp(400, 'Captura la fecha de nacimiento o la edad.');
   }
 }
 
+function credencialLibre(codigo, idActual = 0) {
+  if (!codigo) return;
+  const otro = db.prepare('SELECT nombre FROM visitante WHERE codigo_credencial = ? AND id <> ?').get(String(codigo).trim(), idActual);
+  if (otro) throw new ErrorApp(400, `La credencial ${codigo} ya pertenece a ${otro.nombre}.`);
+}
+
 function crearVisitante(v) {
   validarVisitante(v);
+  credencialLibre(v.codigo_credencial);
   const info = db.prepare(`INSERT INTO visitante (nombre, fecha_nacimiento, genero, ocupacion_id, codigo_credencial, es_frecuente)
     VALUES (?, ?, ?, ?, ?, ?)`).run(
     String(v.nombre).trim(), v.fecha_nacimiento || null, v.genero, v.ocupacion_id || null,
@@ -42,12 +51,26 @@ r.post('/visitantes', (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM visitante WHERE id = ?').get(id));
 });
 
+// Datos de un visitante con su historial reciente
+r.get('/visitantes/:id', (req, res) => {
+  const v = db.prepare('SELECT v.*, o.nombre AS ocupacion FROM visitante v LEFT JOIN ocupacion o ON o.id = v.ocupacion_id WHERE v.id = ?').get(req.params.id);
+  if (!v) throw new ErrorApp(404, 'No se encontró el visitante.');
+  const visitas = db.prepare(`SELECT vi.fecha, vi.hora_entrada, vi.edad, a.nombre AS actividad FROM visita vi
+    JOIN actividad a ON a.id = vi.actividad_id WHERE vi.visitante_id = ? ORDER BY vi.fecha DESC, vi.hora_entrada DESC LIMIT 10`).all(v.id);
+  const total_visitas = db.prepare('SELECT COUNT(*) n FROM visita WHERE visitante_id = ?').get(v.id).n;
+  const prestamos_activos = db.prepare("SELECT COUNT(*) n FROM prestamo WHERE visitante_id = ? AND estado = 'Activo'").get(v.id).n;
+  res.json({ ...v, edad: edadEn(v.fecha_nacimiento, hoy()), visitas, total_visitas, prestamos_activos });
+});
+
+// CU-04 Modificar los datos de un visitante. No cambia las visitas pasadas (guardan su edad de ese día).
 r.put('/visitantes/:id', (req, res) => {
   const v = req.body;
-  validarVisitante(v);
-  db.prepare(`UPDATE visitante SET nombre=?, fecha_nacimiento=?, genero=?, ocupacion_id=?, codigo_credencial=?, es_frecuente=? WHERE id=?`)
+  validarVisitante(v, { nuevo: false });
+  credencialLibre(v.codigo_credencial, Number(req.params.id));
+  const info = db.prepare(`UPDATE visitante SET nombre=?, fecha_nacimiento=?, genero=?, ocupacion_id=?, codigo_credencial=?, es_frecuente=? WHERE id=?`)
     .run(String(v.nombre).trim(), v.fecha_nacimiento || null, v.genero, v.ocupacion_id || null,
-      v.codigo_credencial || null, v.es_frecuente ? 1 : 0, req.params.id);
+      v.codigo_credencial ? String(v.codigo_credencial).trim() : null, v.es_frecuente ? 1 : 0, req.params.id);
+  if (!info.changes) throw new ErrorApp(404, 'No se encontró el visitante.');
   res.json(db.prepare('SELECT * FROM visitante WHERE id = ?').get(req.params.id));
 });
 

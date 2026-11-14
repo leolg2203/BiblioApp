@@ -86,7 +86,10 @@ export default function NuevaVisita() {
                 <strong>{elegido.nombre}</strong>
                 <span style={{ fontSize: 14 }}>{[elegido.ocupacion, elegido.genero, elegido.edad != null && `${elegido.edad} años`].filter(Boolean).join(' · ')}</span>
               </div>
-              <button type="button" className="btn chico" onClick={() => setElegido(null)}>Cambiar</button>
+              <span className="acciones" style={{ gap: 8 }}>
+                <Link className="btn chico" to={`/visitantes/${elegido.id}`}>Editar datos</Link>
+                <button type="button" className="btn chico" onClick={() => setElegido(null)}>Cambiar</button>
+              </span>
             </div>
           ) : (
             <div className="rejilla-2">

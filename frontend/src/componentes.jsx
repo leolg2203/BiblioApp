@@ -11,7 +11,8 @@ export function IconoLibro({ tam = 28 }) {
 
 const MENU = [
   ['/', 'Panel de inicio'],
-  ['/visitas/nueva', 'Visitantes'],
+  ['/visitas/nueva', 'Nueva visita'],
+  ['/visitantes', 'Visitantes'],
   ['/inventario', 'Inventario'],
   ['/prestamos', 'Préstamos'],
   ['/reportes', 'Reportes'],
